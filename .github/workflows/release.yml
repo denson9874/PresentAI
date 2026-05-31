@@ -1,0 +1,66 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows executable
+    runs-on: windows-latest
+
+    env:
+      PUBLISH_DIR: ${{ github.workspace }}\artifacts\publish
+      ZIP_PATH: ${{ github.workspace }}\artifacts\PresentAI-win-x64.zip
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 11 preview
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "11.0.x"
+          dotnet-quality: "preview"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Publish
+        run: >
+          dotnet publish
+          -c Release
+          -r win-x64
+          --self-contained true
+          -o "${{ env.PUBLISH_DIR }}"
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:PublishTrimmed=false
+          -p:WindowsAppSDKSelfContained=true
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path (Split-Path "${{ env.ZIP_PATH }}") | Out-Null
+          if (Test-Path "${{ env.ZIP_PATH }}") {
+            Remove-Item "${{ env.ZIP_PATH }}"
+          }
+          Compress-Archive -Path "${{ env.PUBLISH_DIR }}\*" -DestinationPath "${{ env.ZIP_PATH }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PresentAI-win-x64
+          path: ${{ env.ZIP_PATH }}
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_PATH }}
+          generate_release_notes: true

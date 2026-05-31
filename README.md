@@ -77,7 +77,7 @@ Select **Export Markdown** to save the generated slides and speaker notes as a M
 
 ## Build From Source
 
-Install the .NET 11 SDK preview and the Windows App SDK tooling, then run:
+Install the .NET 10 SDK and the Windows App SDK tooling, then run:
 
 ```powershell
 dotnet restore
@@ -94,7 +94,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 The executable is created in:
 
 ```text
-bin\Release\net11.0-windows10.0.26100.0\win-x64\publish\PresentAI.exe
+bin\Release\net10.0-windows10.0.26100.0\win-x64\publish\PresentAI.exe
 ```
 
 ## GitHub Actions Releases
@@ -104,7 +104,7 @@ This repository includes a GitHub Actions workflow at `.github/workflows/release
 The workflow:
 
 - Runs on Windows.
-- Installs the .NET 11 preview SDK.
+- Installs the .NET 10 SDK.
 - Restores the project.
 - Publishes a self-contained `win-x64` executable.
 - Compresses the published output into `PresentAI-win-x64.zip`.

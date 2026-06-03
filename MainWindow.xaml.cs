@@ -2,10 +2,12 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using Windows.Graphics;
+using Windows.UI;
 using Windows.System;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -21,6 +23,8 @@ public sealed partial class MainWindow : Window
     private DateTimeOffset? _timerStartedAt;
     private PresentationWindow? _presentationWindow;
     private bool _presentationFullScreen;
+    private AppColorScheme _colorScheme = AppColorScheme.PresentAI;
+    private AppBackdropMode _backdropMode = AppBackdropMode.Solid;
 
     public MainWindow()
     {
@@ -28,10 +32,12 @@ public sealed partial class MainWindow : Window
 
         Title = "PresentAI";
         AppWindow.Resize(new SizeInt32(1280, 840));
+        InitializeThemeControls();
+        ApplyTheme();
 
         _castServer = new CastServer(_hub);
         _castServer.Start();
-        ReceiverUrlBox.Text = _castServer.ReceiverUrl;
+        ReceiverUrlBox.Text = $"Local: {_castServer.ReceiverUrl}{Environment.NewLine}Network: {_castServer.NetworkReceiverUrl}";
 
         _hub.StateChanged += (_, _) => DispatcherQueue.TryEnqueue(UpdateSpeakerView);
         SlideCountSlider.ValueChanged += (_, _) => SlideCountText.Text = $"{(int)SlideCountSlider.Value} slides";
@@ -130,6 +136,41 @@ public sealed partial class MainWindow : Window
     private void OpenReceiverButton_OnClick(object sender, RoutedEventArgs e) => _castServer.OpenReceiver();
     private void OpenCastButton_OnClick(object sender, RoutedEventArgs e) => _castServer.OpenChromeCastWindow();
 
+    private async void ImportHtmlButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        var picker = new FileOpenPicker
+        {
+            SuggestedStartLocation = PickerLocationId.DocumentsLibrary
+        };
+        picker.FileTypeFilter.Add(".html");
+        picker.FileTypeFilter.Add(".htm");
+        InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+
+        var file = await picker.PickSingleFileAsync();
+        if (file is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var html = await File.ReadAllTextAsync(file.Path);
+            var deck = HtmlDeckImporter.Import(html, file.Name);
+            if (deck.Slides.Count == 0)
+            {
+                StatusText.Text = "No slides found in the selected HTML file.";
+                return;
+            }
+
+            _hub.Deck = deck;
+            StatusText.Text = $"Imported {deck.Slides.Count} slides from {file.Name}.";
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Import failed: {ex.Message}";
+        }
+    }
+
     private async void ExportMarkdownButton_OnClick(object sender, RoutedEventArgs e)
     {
         if (_hub.Deck.Slides.Count == 0)
@@ -167,6 +208,98 @@ public sealed partial class MainWindow : Window
             ? "gemini-1.5-flash"
             : "gpt-4.1-mini";
     }
+
+    private void ThemeBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ColorSchemeBox?.SelectedItem is ThemeChoice<AppColorScheme> colorChoice)
+        {
+            _colorScheme = colorChoice.Value;
+        }
+
+        if (BackdropBox?.SelectedItem is ThemeChoice<AppBackdropMode> backdropChoice)
+        {
+            _backdropMode = backdropChoice.Value;
+        }
+
+        ApplyTheme();
+    }
+
+    private void InitializeThemeControls()
+    {
+        ColorSchemeBox.ItemsSource = Enum.GetValues<AppColorScheme>()
+            .Select(value => new ThemeChoice<AppColorScheme>(ThemeManager.DisplayName(value), value))
+            .ToList();
+        BackdropBox.ItemsSource = Enum.GetValues<AppBackdropMode>()
+            .Select(value => new ThemeChoice<AppBackdropMode>(ThemeManager.DisplayName(value), value))
+            .ToList();
+
+        ColorSchemeBox.SelectedIndex = 0;
+        BackdropBox.SelectedIndex = 0;
+    }
+
+    private void ApplyTheme()
+    {
+        var palette = ThemeManager.PaletteFor(_colorScheme);
+        SystemBackdrop = ThemeManager.CreateBackdrop(_backdropMode);
+
+        RootGrid.Background = ThemeManager.Brush(WithOpacity(palette.Page, _backdropMode == AppBackdropMode.Solid ? (byte)255 : (byte)186));
+        SidebarPanel.Background = ThemeManager.Brush(palette.Sidebar);
+        NotesPanel.Background = ThemeManager.Brush(palette.Panel);
+        PreviewPanel.Background = ThemeManager.Brush(palette.Slide);
+
+        GenerateButton.Background = ThemeManager.Brush(palette.Primary);
+        GenerateButton.Foreground = ThemeManager.Brush(Color.FromArgb(255, 255, 255, 255));
+
+        ApplyThemeRecursive(RootGrid, palette);
+
+        SlideTitleText.Foreground = ThemeManager.Brush(palette.LightText);
+        VisualHintText.Foreground = ThemeManager.Brush(palette.Muted);
+        NotesText.Foreground = ThemeManager.Brush(palette.Text);
+        NextSlideText.Foreground = ThemeManager.Brush(palette.Text);
+        DeckTitleText.Foreground = ThemeManager.Brush(palette.Text);
+        DeckSubtitleText.Foreground = ThemeManager.Brush(palette.Muted);
+        CounterText.Foreground = ThemeManager.Brush(palette.Muted);
+        TimerText.Foreground = ThemeManager.Brush(palette.Text);
+    }
+
+    private static void ApplyThemeRecursive(DependencyObject element, ThemePalette palette)
+    {
+        switch (element)
+        {
+            case TextBlock textBlock:
+                textBlock.Foreground = IsInsidePanel(textBlock, "SidebarPanel") || IsInsidePanel(textBlock, "PreviewPanel")
+                    ? ThemeManager.Brush(palette.LightText)
+                    : ThemeManager.Brush(palette.Text);
+                break;
+            case Button button when button.Name != "GenerateButton":
+                button.Background = ThemeManager.Brush(palette.Panel);
+                button.Foreground = ThemeManager.Brush(palette.Text);
+                break;
+        }
+
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(element); i++)
+        {
+            ApplyThemeRecursive(VisualTreeHelper.GetChild(element, i), palette);
+        }
+    }
+
+    private static bool IsInsidePanel(DependencyObject element, string panelName)
+    {
+        var current = element;
+        while (current is not null)
+        {
+            if (current is FrameworkElement frameworkElement && frameworkElement.Name == panelName)
+            {
+                return true;
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return false;
+    }
+
+    private static Color WithOpacity(Color color, byte alpha) => Color.FromArgb(alpha, color.R, color.G, color.B);
 
     private void GenerateLocalDraft()
     {
@@ -291,6 +424,8 @@ public sealed partial class MainWindow : Window
     {
         public string Label => $"{(Primary ? "Primary" : "External")} display {Index + 1} ({Width} x {Height})";
     }
+
+    private sealed record ThemeChoice<T>(string Label, T Value);
 
     private static class NativeDisplays
     {

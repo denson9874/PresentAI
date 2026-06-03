@@ -18,12 +18,14 @@ public sealed class CastServer : IDisposable
     {
         _hub = hub;
         Port = FindOpenPort();
-        ReceiverUrl = $"http://{GetLocalIpAddress()}:{Port}/";
+        ReceiverUrl = $"http://127.0.0.1:{Port}/";
+        NetworkReceiverUrl = $"http://{GetLocalIpAddress()}:{Port}/";
         _listener = new TcpListener(IPAddress.Any, Port);
     }
 
     public int Port { get; }
     public string ReceiverUrl { get; }
+    public string NetworkReceiverUrl { get; }
 
     public void Start()
     {

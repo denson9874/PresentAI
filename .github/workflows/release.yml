@@ -12,7 +12,7 @@ permissions:
 jobs:
   build-windows:
     name: Build Windows executable
-    runs-on: windows-2025
+    runs-on: windows-2022
 
     env:
       PUBLISH_DIR: ${{ github.workspace }}\artifacts\publish
@@ -27,16 +27,12 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
-      - name: Restore
-        run: dotnet restore -r win-x64
-
       - name: Publish
         run: >
           dotnet publish
           -c Release
           -r win-x64
           --self-contained true
-          --no-restore
           -o "${{ env.PUBLISH_DIR }}"
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true

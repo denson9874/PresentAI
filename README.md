@@ -33,6 +33,19 @@ Windows may show a SmartScreen warning for unsigned builds. Choose **More info**
 
 PresentAI creates slide titles, bullets, speaker notes, and visual direction for each slide.
 
+## Import An HTML Deck
+
+Use **Import HTML Deck** to bring an already designed `.html` or `.htm` presentation into PresentAI. The importer reformats the HTML into PresentAI's deck model so it works with the speaker notes panel, slide controls, presentation view, receiver URL, and Markdown export.
+
+Supported import patterns:
+
+- JavaScript decks with a `const slides = [...]`, `let slides = [...]`, or `var slides = [...]` array.
+- Slide objects with fields such as `title`, `reference`, `verseText`, `body`, `explanation`, `footer`, and `notes`.
+- Basic HTML presentations built from `section`, `article`, or `.slide` blocks.
+- Continuous HTML pages that can be split on top-level headings.
+
+For designed HTML files, PresentAI keeps the content and speaker notes, then applies the app's native presentation formatting.
+
 ## Present With Speaker View
 
 The main window is the speaker console. It shows:
@@ -43,6 +56,8 @@ The main window is the speaker console. It shows:
 - Timer.
 - Previous and next controls.
 - Markdown export.
+
+The **Theme** controls let you switch between built-in color schemes and WinUI backdrop modes: Solid, Acrylic, Mica, and Tabbed Mica. Backdrop effects apply to the speaker console while the presentation view keeps a high-contrast audience display.
 
 Keyboard controls:
 
@@ -60,11 +75,13 @@ The presentation view is a separate audience-facing window. Keep the speaker con
 
 ## Use AirPlay Or Google Cast
 
-PresentAI hosts a live local receiver URL while the app is running. Use this URL when you want to show the presentation through a browser, Google Cast, AirPlay mirroring, or another display-connected device.
+PresentAI hosts a live receiver while the app is running. The app shows both a local URL and a network URL.
 
 Options:
 
-- Select **Open Receiver URL** to open the live browser view.
+- Use the `Local` URL, usually `http://127.0.0.1:...`, when opening the receiver on the same computer.
+- Use the `Network` URL when opening the receiver from another device on the same network.
+- Select **Open Receiver URL** to open the local live browser view.
 - Select **Open Chrome/Edge Cast Window** to open the receiver in Chrome or Edge with Chromium media routing enabled.
 - Use Chrome or Edge's built-in cast menu to cast the receiver tab to a Google Cast device.
 - Use Windows display projection, AirPlay mirroring software, or a display-connected browser to show the receiver URL on another screen.
@@ -88,7 +105,7 @@ dotnet run
 To publish a self-contained Windows executable:
 
 ```powershell
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:WindowsAppSDKSelfContained=true
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:WindowsAppSDKSelfContained=true
 ```
 
 The executable is created in:
